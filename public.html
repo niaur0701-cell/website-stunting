@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layanan Publik SIG Stunting - Pasarwajo 2026</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet.js (Peta Digital) CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #dashboardMap { height: 550px; width: 100%; z-index: 10; }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans min-h-screen flex flex-col justify-between">
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <!-- SIDEBAR MENU UTAMA (UNTUK MASYARAKAT) -->
+        <nav class="w-full md:w-72 bg-slate-900 text-white p-6 shadow-xl flex flex-col justify-between">
+            <div>
+                <h1 class="text-xl font-extrabold tracking-wider text-blue-400 border-b border-slate-700 pb-4 mb-6 uppercase text-center md:text-left">
+                    SIG STUNTING PASARWAJO
+                </h1>
+                
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">PILIH TAMPILAN PETA</h2>
+                <ul class="space-y-3">
+                    <li>
+                        <button id="btnSebaran" onclick="gantiModePeta('sebaran')" class="w-full flex items-center gap-3 p-3 rounded-xl bg-blue-600 text-white text-sm font-semibold transition shadow-md">
+                            <span>📍</span> 1. Peta Sebaran Stunting
+                        </button>
+                    </li>
+                    <li>
+                        <button id="btnPrioritas" onclick="gantiModePeta('prioritas')" class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-semibold transition">
+                            <span>🚨</span> 2. Peta Wilayah Prioritas
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Informasi Layanan Publik -->
+            <div class="mt-8 pt-4 border-t border-slate-800 text-xs text-slate-400 space-y-2">
+                <p class="font-bold text-slate-300">ℹ️ Petunjuk Peta:</p>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Prioritas Utama</div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Kondisi Waspada</div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Kondisi Aman</div>
+            </div>
+        </nav>
+
+        <!-- AREA KONTEN UTAMA -->
+        <main class="flex-1 p-6 md:p-8 space-y-6">
+            <!-- Header Atas -->
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 id="txtJudulHalaman" class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">Peta Sebaran Stunting</h2>
+                    <p id="txtSubJudul" class="text-sm text-slate-500 font-semibold mt-0.5">Menampilkan kondisi seluruh desa & kelurahan di Kecamatan Pasarwajo.</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm[">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+                    <span>Akses Publik Terbuka</span>
+                </div>
+            </header>
+
+            <!-- AREA VISUALISASI PETA -->
+            <div class="grid grid-cols-1 gap-8">
+                <section class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden flex flex-col justify-between">
+                    <!-- Wadah Peta Leaflet.js -->
+                    <div id="dashboardMap"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="w-full text-center py-4 text-slate-500 text-xs bg-slate-200/50 border-t border-slate-200">
+        &copy; 2026 SIG Stunting Kabupaten Buton. Informasi ini disediakan transparan untuk masyarakat.
+    </footer>
+
+    <!-- LOGIK JAVASCRIPT -->
+    <script>
+        // 1. Data Koordinat Geografis Wilayah Pasarwajo
+        const koordinatDesa = {
+            "Lapodi": [-5.424, 122.825], "Desa Lapodi": [-5.424, 122.825],
+            "Saragi": [-5.445, 122.815], "Desa Saragi": [-5.445, 122.815],
+            "Warinta": [-5.465, 122.785], "Desa Warinta": [-5.465, 122.785],
+            "Mantowu": [-5.410, 122.830], "Desa Mantowu": [-5.410, 122.830],
+            "Wakoko": [-5.495, 122.805], "Kel. Wakoko": [-5.495, 122.805],
+            "Wasaga": [-5.475, 122.840], "Kel. Wasaga": [-5.475, 122.840],
+            "Winning": [-5.435, 122.795], "Desa Winning": [-5.435, 122.795],
+            "Kabawakole": [-5.455, 122.810], "Desa Kabawakole": [-5.455, 122.810],
+            "Kaongkeongkea": [-5.490, 122.820], "Desa Kaongkeongkea": [-5.490, 122.820],
+            "Kancinaa": [-5.460, 122.800], "Desa Kancinaa": [-5.460, 122.800],
+            "Waangguanggu": [-5.405, 122.790], "Desa Waangguanggu": [-5.405, 122.790],
+            "Kombeli": [-5.480, 122.835], "Kel. Kombeli": [-5.480, 122.835],
+            "Dongkala": [-5.500, 122.830], "Kel. Takimpo": [-5.430, 122.845],
+            "Kel. Pasarwajo": [-5.485, 122.825], "Desa Laburunci": [-5.470, 122.830],
+            "Desa Sampuabalo": [-5.415, 122.798], "Desa Megabahari": [-5.400, 122.780]
+        };
+
+        // 2. Data Kasus Stunting
+        const defaultStunting = [
+            { desa: "Lapodi", prevalensi: 34.4, status: "Prioritas Utama" },
+            { desa: "Saragi", prevalensi: 32.9, status: "Prioritas Utama" },
+            { desa: "Warinta", prevalensi: 31.9, status: "Prioritas Utama" },
+            { desa: "Mantowu", prevalensi: 26.1, status: "Waspada" },
+            { desa: "Wakoko", prevalensi: 25.6, status: "Waspada" },
+            { desa: "Wasaga", prevalensi: 23.0, status: "Waspada" },
+            { desa: "Winning", prevalensi: 21.9, status: "Waspada" },
+            { desa: "Kabawakole", prevalensi: 21.8, status: "Waspada" },
+            { desa: "Kaongkeongkea", prevalensi: 21.3, status: "Waspada" },
+            { desa: "Kancinaa", prevalensi: 20.3, status: "Waspada" },
+            { desa: "Waangguanggu", prevalensi: 18.7, status: "Aman" },
+            { desa: "Kombeli", prevalensi: 17.5, status: "Aman" },
+            { desa: "Dongkala", prevalensi: 16.2, status: "Aman" }
+        ];
+
+        let databaseStunting = JSON.parse(localStorage.getItem('databaseStunting')) || defaultStunting;
+
+        // 3. Inisialisasi Peta
+        let map;
+        let layerMarker = L.layerGroup(); // Mengelompokkan marker agar mudah dihapus-pasang
+
+        function inisialisasiPeta() {
+            map = L.map('dashboardMap').setView([-5.45, 122.81], 11.5);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            layerMarker.addTo(map);
+            renderMarkerPeta('sebaran'); // Secara default menampilkan peta sebaran
+        }
+
+        // 4. Logika Menggambar Marker (Filter Berdasarkan Mode)
+        function renderMarkerPeta(mode) {
+            layerMarker.clearLayers(); // Bersihkan peta terlebih dahulu
+
+            databaseStunting.forEach(item => {
+                // Jika modenya 'prioritas', lewati wilayah yang bukan Prioritas Utama
+                if (mode === 'prioritas' && item.status !== "Prioritas Utama") {
+                    return; 
+                }
+
+                const koordinat = koordinatDesa[item.desa];
+                if (koordinat) {
+                    let mapColor = "#10b981"; // Hijau
+                    if (item.status === "Prioritas Utama") {
+                        mapColor = "#ef4444"; // Merah
+                    } else if (item.status === "Waspada") {
+                        mapColor = "#f59e0b"; // Kuning
+                    }
+
+                    const marker = L.circleMarker(koordinat, {
+                        radius: 14,
+                        fillColor: mapColor,
+                        color: "#ffffff",
+                        weight: 2.5,
+                        fillOpacity: 0.85
+                    });
+
+                    marker.bindPopup(`
+                        <div class="p-1">
+                            <h4 class="font-bold text-slate-900 text-sm">Desa/Kel. ${item.desa}</h4>
+                            <p class="text-xs text-slate-600 mt-1">Prevalensi Stunting: <b class="text-slate-950">${item.prevalensi}%</b></p>
+                            <p class="text-xs text-slate-600">Status Kerawanan: <span class="font-bold" style="color:${mapColor}">${item.status}</span></p>
+                        </div>
+                    `);
+
+                    layerMarker.addLayer(marker);
+                }
+            });
+        }
+
+        // 5. Fungsi Mengendalikan Klik Menu Kontrol Navigasi
+        function gantiModePeta(mode) {
+            const btnSebaran = document.getElementById('btnSebaran');
+            const btnPrioritas = document.getElementById('btnPrioritas');
+            const txtJudul = document.getElementById('txtJudulHalaman');
+            const txtSub = document.getElementById('txtSubJudul');
+
+            if (mode === 'sebaran') {
+                // Ubah gaya tombol menu
+                btnSebaran.className = "w-full flex items-center gap-3 p-3 rounded-xl bg-blue-600 text-white text-sm font-semibold transition shadow-md";
+                btnPrioritas.className = "w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-semibold transition";
+                
+                // Ubah tulisan teks teks judul dashboard
+                txtJudul.textContent = "Peta Sebaran Stunting";
+                txtSub.textContent = "Menampilkan kondisi seluruh desa & kelurahan di Kecamatan Pasarwajo.";
+                
+                renderMarkerPeta('sebaran');
+            } else if (mode === 'prioritas') {
+                // Ubah gaya tombol menu
+                btnSebaran.className = "w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-semibold transition";
+                btnPrioritas.className = "w-full flex items-center gap-3 p-3 rounded-xl bg-red-600 text-white text-sm font-semibold transition shadow-md";
+                
+                // Ubah tulisan teks teks judul dashboard
+                txtJudul.textContent = "Peta Wilayah Prioritas Intervensi";
+                txtSub.textContent = "HANYA menampilkan wilayah kritis (gizi buruk tinggi) yang butuh tindakan darurat.";
+                
+                renderMarkerPeta('prioritas');
+            }
+        }
+
+        window.onload = function() {
+            inisialisasiPeta();
+        };
+    </script>
+</body>
+</html>
+
